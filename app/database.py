@@ -16,11 +16,17 @@ Base = declarative_base()
 # Create a configured "Session" class
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 def create_all_tables():
     # Import all your models here so they are registered with Base.metadata
     from app.auth.models import User
-    # from app.products.models import Product  # example additional import
+   # from app.admin.models import Product  # example additional import
     # from app.orders.models import Order     # import all models that inherit from Base
 
     print("Creating tables...")

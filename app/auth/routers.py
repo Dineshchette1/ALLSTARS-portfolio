@@ -7,7 +7,7 @@ from app.auth import models, schemas
 router = APIRouter()
 
 
-# Dependency to get DB session
+
 def get_db():
     db = SessionLocal()
     try:
