@@ -26,7 +26,7 @@ def get_db():
 def create_all_tables():
     # Import all your models here so they are registered with Base.metadata
     from app.auth.models import User
-   # from app.admin.models import Product  # example additional import
+    from app.cart.models import CartItem  # example additional import
     # from app.orders.models import Order     # import all models that inherit from Base
 
     print("Creating tables...")

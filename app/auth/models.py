@@ -8,7 +8,7 @@ from sqlalchemy.orm import declarative_base
 DATABASE_URL = "postgresql+psycopg2://postgres:CHANGE_ME@localhost:5432/capstone_db"
 
 engine = create_engine(DATABASE_URL)
-Base = declarative_base()
+#Base = declarative_base()
 
 def generate_unique_id():
     return random.randint(10**15, (10**16) - 1)
