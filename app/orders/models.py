@@ -60,6 +60,4 @@ class Address(Base):
     postal_code = Column(String(20), nullable=False)
     country = Column(String(100), nullable=False)
 
-
-    user = relationship("User")
-
+    user = relationship("User", back_populates="addresses")

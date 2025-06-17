@@ -19,6 +19,8 @@ class UserRole(enum.Enum):
     ADMIN = "ADMIN"
 
 
+from sqlalchemy.orm import relationship
+
 class User(Base):
     __tablename__ = "CapstoneUsers"
 
@@ -33,6 +35,12 @@ class User(Base):
     mobile = Column(String, unique=True)
     last_login = Column(DateTime, default=datetime.utcnow)
     role = Column(SQLAlchemyEnum(UserRole), default=UserRole.CUSTOMER)
+
+
+    cart_items = relationship("CartItem", back_populates="user", cascade="all, delete-orphan")
+    orders = relationship("Order", back_populates="user", cascade="all, delete-orphan")
+    addresses = relationship("Address", back_populates="user", cascade="all, delete-orphan")
+
 
 print("Creating tables...")
 Base.metadata.create_all(bind=engine)

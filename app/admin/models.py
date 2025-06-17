@@ -48,3 +48,8 @@ class Product(Base):
 
     category = relationship("Category", back_populates="products")
     subcategory = relationship("Subcategory", back_populates="products")
+
+    cart_items = relationship("CartItem", back_populates="product", cascade="all, delete-orphan")
+
+    # Optional: for order items too
+    order_items = relationship("OrderItem", back_populates="product", cascade="all, delete-orphan")
