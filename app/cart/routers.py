@@ -90,4 +90,6 @@ def clear_cart(user_id: int, db: Session = Depends(get_db)):
         db.delete(item)
 
     db.commit()
+
     return {"message": "Cart cleared"}
+
