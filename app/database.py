@@ -3,20 +3,31 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 from app.core.config import settings
 import os
 from dotenv import load_dotenv
+import time
+import sqlalchemy.exc
 
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
-# Use declarative_base() from sqlalchemy.orm to avoid deprecation warning
-#DATABASE_URL = "postgresql+psycopg2://postgres:CHANGE_ME@localhost:5432/capstone_db"
+# DATABASE_URL example: "postgresql+psycopg2://postgres:CHANGE_ME@localhost:5432/capstone_db"
 
 engine = create_engine(DATABASE_URL)
 Base = declarative_base()
 
-# SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL
-#
-# # Create the engine
-# engine = create_engine(SQLALCHEMY_DATABASE_URL)
+MAX_RETRIES = 10
+RETRY_DELAY = 3  # seconds
+
+for i in range(MAX_RETRIES):
+    try:
+        engine.connect()
+        print("Database connected!")
+        break
+    except sqlalchemy.exc.OperationalError:
+        print(f"DB not ready, retrying in {RETRY_DELAY} seconds... ({i + 1}/{MAX_RETRIES})")
+        time.sleep(RETRY_DELAY)
+else:
+    print("Could not connect to DB after retries. Exiting.")
+    exit(1)
 
 # Create a configured "Session" class
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

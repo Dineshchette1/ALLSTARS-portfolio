@@ -5,9 +5,9 @@ from app.database import Base  # import Base from database.py
 from sqlalchemy.orm import declarative_base
 import random
 
-DATABASE_URL = "postgresql+psycopg2://postgres:CHANGE_ME@localhost:5432/capstone_db"
-
-engine = create_engine(DATABASE_URL)
+# DATABASE_URL = "postgresql+psycopg2://postgres:CHANGE_ME@localhost:5432/capstone_db"
+#
+# engine = create_engine(DATABASE_URL)
 #Base = declarative_base()
 
 from sqlalchemy import BigInteger

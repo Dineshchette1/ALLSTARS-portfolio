@@ -5,9 +5,9 @@ from sqlalchemy import create_engine ,Column, String, BigInteger, DateTime, Enum
 from app.database import Base  # import Base from database.py
 from sqlalchemy.orm import declarative_base
 
-DATABASE_URL = "postgresql+psycopg2://postgres:CHANGE_ME@localhost:5432/capstone_db"
-
-engine = create_engine(DATABASE_URL)
+# DATABASE_URL = "postgresql+psycopg2://postgres:CHANGE_ME@localhost:5432/capstone_db"
+#
+# engine = create_engine(DATABASE_URL)
 #Base = declarative_base()
 
 def generate_unique_id():
@@ -42,6 +42,6 @@ class User(Base):
     addresses = relationship("Address", back_populates="user", cascade="all, delete-orphan")
 
 
-print("Creating tables...")
-Base.metadata.create_all(bind=engine)
-print("Tables created!")
+# print("Creating tables...")
+# Base.metadata.create_all(bind=engine)
+# print("Tables created!")
