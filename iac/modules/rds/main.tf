@@ -3,7 +3,7 @@ resource "aws_db_instance" "postgres" {
   engine               = "postgres"
   engine_version       = "13"
   instance_class       = var.instance_class
-  name                 = var.db_name
+  db_name              = var.db_name
   username             = var.db_username
   password             = var.db_password
   publicly_accessible  = true

@@ -1,9 +1,11 @@
 resource "aws_instance" "app_server" {
-  ami           = "ami-0c94855ba95c71c99"  # Amazon Linux 2 - check your region for latest AMI
+  ami           = "ami-0c94855ba95c71c99"  # ✅ Correct AMI for us-east-1
   instance_type = var.instance_type
   subnet_id     = var.subnet_id
 
-  # User data to install docker and run your docker container
+  associate_public_ip_address = true  # ✅ This is REQUIRED for public IP
+
+  # Install Docker and run FastAPI container
   user_data = <<-EOF
               #!/bin/bash
               yum update -y
