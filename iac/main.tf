@@ -12,7 +12,6 @@ provider "aws" {
   region = "us-east-1"
 }
 
-
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "5.1.1"
@@ -32,7 +31,41 @@ module "vpc" {
   }
 }
 
+# Security group for EC2 instance
+resource "aws_security_group" "ec2_sg" {
+  name        = "ec2-sg"
+  description = "Allow HTTP and SSH access"
+  vpc_id      = module.vpc.vpc_id
 
+  ingress {
+    description = "Allow HTTP (port 8000)"
+    from_port   = 8000
+    to_port     = 8000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "Allow SSH"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "ec2-security-group"
+  }
+}
+
+# Security group for RDS instance
 resource "aws_security_group" "rds_sg" {
   name        = "rds-sg"
   description = "Allow PostgreSQL traffic"
@@ -42,7 +75,7 @@ resource "aws_security_group" "rds_sg" {
     from_port   = 5432
     to_port     = 5432
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  #
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
@@ -57,7 +90,6 @@ resource "aws_security_group" "rds_sg" {
   }
 }
 
-
 resource "aws_db_subnet_group" "rds_subnet_group" {
   name       = "rds-subnet-group"
   subnet_ids = module.vpc.private_subnets
@@ -67,13 +99,12 @@ resource "aws_db_subnet_group" "rds_subnet_group" {
   }
 }
 
-
 module "ec2" {
-  source        = "./modules/ec2"
-  instance_type = "t2.micro"
-  subnet_id     = module.vpc.public_subnets[0]
+  source            = "./modules/ec2"
+  instance_type     = "t2.micro"
+  subnet_id         = module.vpc.public_subnets[0]
+  security_group_id = aws_security_group.ec2_sg.id
 }
-
 
 module "rds" {
   source               = "./modules/rds"

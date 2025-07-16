@@ -7,7 +7,7 @@ variable "db_name" {
 }
 
 variable "db_username" {
-  default = "admin"
+  default = "capstone_user"
 }
 
 variable "db_password" {
