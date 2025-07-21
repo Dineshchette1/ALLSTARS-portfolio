@@ -1,21 +1,69 @@
-# Python bytecode and caches
+# Python
 __pycache__/
 *.py[cod]
-*$py.class
-
-# Virtual environments
+*.pyo
+*.pyd
 .venv/
 venv/
-env/
 ENV/
+env/
 
+# Byte-compiled / optimized / DLL files
+*.pyc
+*$py.class
 
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
 
-# Docker specific
-docker-compose.override.yml
-
-# VSCode settings (optional)
+# IDEs and editors
 .vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
 
-# macOS system files (optional)
+# Docker
+docker-compose.override.yml
+*.log
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Terraform variable files with secrets
+terraform.tfvars
+*.tfvars.json
+
+# AWS credentials file
+.aws/
+
+# Local test DB and logs
+test.db
+*.sqlite3
+*.log
+
+# MacOS
 .DS_Store
+
+# Pytest cache
+.pytest_cache/
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Others
+*.swp
+*.bak

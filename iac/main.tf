@@ -115,3 +115,8 @@ module "rds" {
   db_security_group_id = aws_security_group.rds_sg.id
   db_subnet_group_name = aws_db_subnet_group.rds_subnet_group.name
 }
+
+resource "aws_ecs_cluster" "this" {
+  name = var.ecs_cluster_name
+}
+
