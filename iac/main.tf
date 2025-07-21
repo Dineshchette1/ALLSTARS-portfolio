@@ -2,7 +2,7 @@ terraform {
   required_version = ">= 1.0"
 
   backend "s3" {
-    bucket = "capstone-bucket-allstars"
+    bucket = "capstone-bucket-allstars2"
     key    = "capstone/terraform.tfstate"
     region = "us-east-1"
   }
