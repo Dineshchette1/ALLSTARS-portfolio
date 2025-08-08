@@ -41,3 +41,28 @@ variable "container_port" {
 variable "aws_region" {
   default = "us-east-1"
 }
+
+variable "vpc_id" {
+  description = "VPC ID where ALB is deployed"
+  type        = string
+}
+
+variable "public_subnets" {
+  description = "List of public subnet IDs for ALB"
+  type        = list(string)
+}
+
+variable "ec2_instance_target_id" {
+  description = "EC2 instance ID(s) to register in the target group"
+  type        = list(string)
+}
+
+variable "domain_name" {
+  description = "Domain name for Route 53 record"
+  type        = string
+}
+
+variable "hosted_zone_id" {
+  description = "Route 53 hosted zone ID"
+  type        = string
+}
