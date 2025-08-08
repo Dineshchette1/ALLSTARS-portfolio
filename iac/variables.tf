@@ -73,6 +73,7 @@ variable "ec2_instance_target_id" {
 variable "domain_name" {
   description = "Domain name for Route 53 record"
   type        = string
+  default     = null
 }
 
 variable "hosted_zone_id" {
