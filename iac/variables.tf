@@ -47,10 +47,11 @@ variable "aws_region" {
 }
 
 variable "private_network_acl_id" {
-  description = "Network ACL ID for private subnet (optional). If empty, will auto-fetch."
+  description = "Network ACL ID for private subnet (required, find in AWS Console)"
   type        = string
   default     = ""
 }
+
 
 # SSH allowed IP (your public IP with /32)
 variable "my_ip" {

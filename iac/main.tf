@@ -44,14 +44,12 @@ data "aws_vpc" "selected" {
 }
 
 # Get private subnet info to fetch associated NACL ID
-data "aws_subnet" "private_subnet_1" {
-  id = module.vpc.private_subnets[0]
+locals {
+  private_nacl_id = length(var.private_network_acl_id) > 0 ? var.private_network_acl_id : "" # fallback empty string
 }
 
-locals {
-  # Use provided private_network_acl_id variable or fetch from subnet association
-  private_nacl_id = length(var.private_network_acl_id) > 0 ? var.private_network_acl_id : data.aws_subnet.private_subnet_1.network_acl_id
-}
+# You must set private_network_acl_id variable manually to your private subnet's NACL id.
+
 
 # Security group for EC2 instance — restrict SSH to your IP, HTTP open to all
 resource "aws_security_group" "ec2_sg" {
