@@ -47,7 +47,7 @@ resource "aws_security_group" "ec2_sg" {
     from_port   = 8000
     to_port     = 8000
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # Allow all, as HTTP is public-facing
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
@@ -55,14 +55,14 @@ resource "aws_security_group" "ec2_sg" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = [var.my_ip != "" ? var.my_ip : "0.0.0.0/0"]  # Restrict SSH to your IP if set
+    cidr_blocks = [var.my_ip != "" ? var.my_ip : "0.0.0.0/0"]
   }
 
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]  # Allow all outbound
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   tags = {
@@ -80,7 +80,7 @@ resource "aws_security_group" "rds_sg" {
     from_port   = 5432
     to_port     = 5432
     protocol    = "tcp"
-    cidr_blocks = [data.aws_vpc.selected.cidr_block]  # Only allow traffic from inside VPC (PoLP)
+    cidr_blocks = [data.aws_vpc.selected.cidr_block]
   }
 
   egress {
@@ -121,14 +121,20 @@ module "rds" {
   db_subnet_group_name = aws_db_subnet_group.rds_subnet_group.name
 }
 
-# Network ACLs for public subnet
+# Create public subnet NACL
 resource "aws_network_acl" "public_acl" {
   vpc_id = module.vpc.vpc_id
-  subnet_ids = module.vpc.public_subnets
 
   tags = {
     Name = "public-subnet-nacl"
   }
+}
+
+# Associate public subnets with public ACL
+resource "aws_network_acl_association" "public_subnet_associations" {
+  for_each = toset(module.vpc.public_subnets)
+  subnet_id     = each.value
+  network_acl_id = aws_network_acl.public_acl.id
 }
 
 resource "aws_network_acl_rule" "public_in_http" {
@@ -155,7 +161,7 @@ resource "aws_network_acl_rule" "public_in_ssh" {
 
 resource "aws_network_acl_rule" "public_out_all" {
   network_acl_id = aws_network_acl.public_acl.id
-  rule_number    = 100
+  rule_number    = 1000
   protocol       = "-1"
   rule_action    = "allow"
   egress         = true
@@ -164,14 +170,20 @@ resource "aws_network_acl_rule" "public_out_all" {
   cidr_block     = "0.0.0.0/0"
 }
 
-# Network ACLs for private subnet
+# Create private subnet NACL
 resource "aws_network_acl" "private_acl" {
   vpc_id = module.vpc.vpc_id
-  subnet_ids = module.vpc.private_subnets
 
   tags = {
     Name = "private-subnet-nacl"
   }
+}
+
+# Associate private subnets with private ACL
+resource "aws_network_acl_association" "private_subnet_associations" {
+  for_each = toset(module.vpc.private_subnets)
+  subnet_id     = each.value
+  network_acl_id = aws_network_acl.private_acl.id
 }
 
 resource "aws_network_acl_rule" "private_in_postgres" {
@@ -187,7 +199,7 @@ resource "aws_network_acl_rule" "private_in_postgres" {
 
 resource "aws_network_acl_rule" "private_out_all" {
   network_acl_id = aws_network_acl.private_acl.id
-  rule_number    = 100
+  rule_number    = 1000
   protocol       = "-1"
   rule_action    = "allow"
   egress         = true
