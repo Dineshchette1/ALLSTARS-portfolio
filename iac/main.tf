@@ -127,7 +127,8 @@ resource "aws_ecs_cluster" "this" {
 
 # Local to compute ssh cidr with safe trimspace
 locals {
-  ssh_cidr = length(trimspace(var.my_ip)) > 0 ? var.my_ip : "${local.my_ip_chomp}/32"
+  my_ip_chomp = trimspace(var.my_ip)
+  ssh_cidr = length(local.my_ip_chomp) > 0 ? var.my_ip : "${local.my_ip_chomp}/32"
 }
 
 # Network ACL example using VPC CIDR block from data source
