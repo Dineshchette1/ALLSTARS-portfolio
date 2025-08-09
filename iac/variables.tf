@@ -20,3 +20,14 @@ variable "private_network_acl_id" {
   description = "Network ACL ID for private subnet (must be provided)"
   type        = string
 }
+
+variable "public_network_acl_id" {
+  description = "Network ACL ID for public subnet (must be provided)"
+  type        = string
+}
+
+variable "aws_region" {
+  description = "AWS region"
+  type        = string
+  default     = "us-east-1"
+}
