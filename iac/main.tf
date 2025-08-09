@@ -31,27 +31,12 @@ module "vpc" {
   }
 }
 
-data "http" "my_ip" {
-  url = "https://checkip.amazonaws.com/"
-}
-
-locals {
-  my_ip_cidr = "${trimspace(data.http.my_ip.response_body)}/32"
-}
-
+# Data source to get VPC CIDR block
 data "aws_vpc" "selected" {
   id = module.vpc.vpc_id
 }
 
-# Get private subnet info to fetch associated NACL ID
-locals {
-  private_nacl_id = length(var.private_network_acl_id) > 0 ? var.private_network_acl_id : "" # fallback empty string
-}
-
-# You must set private_network_acl_id variable manually to your private subnet's NACL id.
-
-
-# Security group for EC2 instance — restrict SSH to your IP, HTTP open to all
+# Security group for EC2 instance
 resource "aws_security_group" "ec2_sg" {
   name        = "ec2-sg"
   description = "Allow HTTP and SSH access"
@@ -62,7 +47,7 @@ resource "aws_security_group" "ec2_sg" {
     from_port   = 8000
     to_port     = 8000
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["0.0.0.0/0"]  # Consider restricting to your IP or network for PoLP
   }
 
   ingress {
@@ -70,7 +55,7 @@ resource "aws_security_group" "ec2_sg" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = [local.my_ip_cidr]
+    cidr_blocks = [var.my_ip != "" ? var.my_ip : "0.0.0.0/0"]  # safer if you provide your IP
   }
 
   egress {
@@ -85,7 +70,7 @@ resource "aws_security_group" "ec2_sg" {
   }
 }
 
-# Security group for RDS instance — restrict access to VPC CIDR (PoLP)
+# Security group for RDS instance
 resource "aws_security_group" "rds_sg" {
   name        = "rds-sg"
   description = "Allow PostgreSQL traffic"
@@ -95,7 +80,7 @@ resource "aws_security_group" "rds_sg" {
     from_port   = 5432
     to_port     = 5432
     protocol    = "tcp"
-    cidr_blocks = [data.aws_vpc.selected.cidr_block]
+    cidr_blocks = [data.aws_vpc.selected.cidr_block]  # restrict to VPC CIDR for PoLP
   }
 
   egress {
@@ -140,10 +125,16 @@ resource "aws_ecs_cluster" "this" {
   name = var.ecs_cluster_name
 }
 
-# Network ACL Rule example to allow inbound Postgres traffic in private subnet
+# Local to compute ssh CIDR safely
+locals {
+  my_ip_chomp = trimspace(var.my_ip)
+  ssh_cidr    = length(local.my_ip_chomp) > 0 ? local.my_ip_chomp : "0.0.0.0/0"
+}
+
+# Network ACL rule for private subnet Postgres access (replace var.private_network_acl_id accordingly)
 resource "aws_network_acl_rule" "private_in_postgres" {
-  network_acl_id = local.private_nacl_id
-  rule_number    = 100
+  network_acl_id = var.private_network_acl_id  # provide this in variables.tf or terraform.tfvars
+  rule_number    = 110                          # changed to avoid conflict
   protocol       = "tcp"
   rule_action    = "allow"
   egress         = false
@@ -152,12 +143,7 @@ resource "aws_network_acl_rule" "private_in_postgres" {
   cidr_block     = data.aws_vpc.selected.cidr_block
 }
 
-# Reference existing S3 bucket (do NOT recreate)
+# Use your existing S3 bucket without ACL resource, just reference it as needed
 data "aws_s3_bucket" "config_bucket" {
   bucket = "capstone-bucket-allstars2"
-}
-
-resource "aws_s3_bucket_acl" "config_bucket_acl" {
-  bucket = data.aws_s3_bucket.config_bucket.id
-  acl    = "private"
 }
