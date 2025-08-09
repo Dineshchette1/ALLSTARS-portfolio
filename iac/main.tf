@@ -31,12 +31,34 @@ module "vpc" {
   }
 }
 
-# Data source to get VPC CIDR block
+# Detect your current public IP for SSH access dynamically
+data "http" "my_ip" {
+  url = "https://checkip.amazonaws.com/"
+}
+
+locals {
+  my_ip_cidr = "${trimspace(data.http.my_ip.body)}/32"
+}
+
+# Data source for VPC CIDR block
 data "aws_vpc" "selected" {
   id = module.vpc.vpc_id
 }
 
-# Security group for EC2 instance
+# Auto-fetch private subnet NACL by subnet association
+data "aws_network_acl" "private_nacl" {
+  filter {
+    name   = "association.subnet-id"
+    values = [module.vpc.private_subnets[0]]
+  }
+}
+
+# Use existing S3 bucket by name (replace with your bucket name in variables.tf or terraform.tfvars)
+data "aws_s3_bucket" "config_bucket" {
+  bucket = var.existing_s3_bucket_name
+}
+
+# Security group for EC2 instance with SSH allowed only from your current IP
 resource "aws_security_group" "ec2_sg" {
   name        = "ec2-sg"
   description = "Allow HTTP and SSH access"
@@ -51,11 +73,11 @@ resource "aws_security_group" "ec2_sg" {
   }
 
   ingress {
-    description = "Allow SSH"
+    description = "Allow SSH from my current IP"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [local.my_ip_cidr]
   }
 
   egress {
@@ -70,17 +92,17 @@ resource "aws_security_group" "ec2_sg" {
   }
 }
 
-# Security group for RDS instance
+# Security group for RDS instance limited to VPC CIDR (PoLP)
 resource "aws_security_group" "rds_sg" {
   name        = "rds-sg"
-  description = "Allow PostgreSQL traffic"
+  description = "Allow PostgreSQL traffic from VPC CIDR only"
   vpc_id      = module.vpc.vpc_id
 
   ingress {
     from_port   = 5432
     to_port     = 5432
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # Consider restricting for PoLP
+    cidr_blocks = [data.aws_vpc.selected.cidr_block]
   }
 
   egress {
@@ -125,15 +147,9 @@ resource "aws_ecs_cluster" "this" {
   name = var.ecs_cluster_name
 }
 
-# Local to compute ssh cidr with safe trimspace
-locals {
-  my_ip_chomp = trimspace(var.my_ip)
-  ssh_cidr = length(local.my_ip_chomp) > 0 ? var.my_ip : "${local.my_ip_chomp}/32"
-}
-
-# Network ACL example using VPC CIDR block from data source
+# Network ACL rule referencing the auto-fetched private NACL
 resource "aws_network_acl_rule" "private_in_postgres" {
-  network_acl_id = "acl-099d7d4705ddfa2fa"  # replace with your NACL id
+  network_acl_id = data.aws_network_acl.private_nacl.id
   rule_number    = 100
   protocol       = "tcp"
   rule_action    = "allow"
@@ -143,13 +159,8 @@ resource "aws_network_acl_rule" "private_in_postgres" {
   cidr_block     = data.aws_vpc.selected.cidr_block
 }
 
-# S3 bucket without acl argument (deprecated)
-resource "aws_s3_bucket" "config_bucket" {
-  bucket = "capstone-bucket-allstars2"
-  # Other configs
-}
-
+# Reference the existing S3 bucket ACL (do not recreate bucket)
 resource "aws_s3_bucket_acl" "config_bucket_acl" {
-  bucket = aws_s3_bucket.config_bucket.id
+  bucket = data.aws_s3_bucket.config_bucket.id
   acl    = "private"
 }
