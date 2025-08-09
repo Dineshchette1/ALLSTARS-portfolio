@@ -4,30 +4,8 @@ variable "db_password" {
   sensitive   = true
 }
 
-variable "ecs_cluster_name" {
-  description = "ECS Cluster name"
-  type        = string
-  default     = "capstone-ecs-cluster"
-}
-
 variable "my_ip" {
-  description = "Your public IP for SSH access (with /32), leave empty to allow all"
+  description = "Your public IP with CIDR (/32) for SSH access. Leave empty to allow all."
   type        = string
   default     = ""
-}
-
-variable "private_network_acl_id" {
-  description = "Network ACL ID for private subnet (must be provided)"
-  type        = string
-}
-
-variable "public_network_acl_id" {
-  description = "Network ACL ID for public subnet (must be provided)"
-  type        = string
-}
-
-variable "aws_region" {
-  description = "AWS region"
-  type        = string
-  default     = "us-east-1"
 }

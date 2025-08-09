@@ -9,7 +9,7 @@ terraform {
 }
 
 provider "aws" {
-  region = var.aws_region
+  region = "us-east-1"
 }
 
 module "vpc" {
@@ -31,38 +31,38 @@ module "vpc" {
   }
 }
 
+# Data source to get VPC CIDR block
 data "aws_vpc" "selected" {
   id = module.vpc.vpc_id
 }
 
-# --- Security Groups ---
-
+# Security Group for EC2 instance
 resource "aws_security_group" "ec2_sg" {
   name        = "ec2-sg"
-  description = "Allow HTTP and SSH access"
+  description = "Allow HTTP (8000) and SSH access"
   vpc_id      = module.vpc.vpc_id
 
   ingress {
-    description = "Allow HTTP (port 8000)"
+    description = "Allow HTTP on port 8000"
     from_port   = 8000
     to_port     = 8000
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # or restrict to your IP for PoLP
+    cidr_blocks = ["0.0.0.0/0"]  # Allow all, as HTTP is public-facing
   }
 
   ingress {
-    description = "Allow SSH"
+    description = "Allow SSH from my IP"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = [var.my_ip != "" ? var.my_ip : "0.0.0.0/0"] # restrict SSH by default
+    cidr_blocks = [var.my_ip != "" ? var.my_ip : "0.0.0.0/0"]  # Restrict SSH to your IP if set
   }
 
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["0.0.0.0/0"]  # Allow all outbound
   }
 
   tags = {
@@ -70,16 +70,17 @@ resource "aws_security_group" "ec2_sg" {
   }
 }
 
+# Security Group for RDS instance
 resource "aws_security_group" "rds_sg" {
   name        = "rds-sg"
-  description = "Allow PostgreSQL traffic"
+  description = "Allow PostgreSQL traffic only from VPC"
   vpc_id      = module.vpc.vpc_id
 
   ingress {
     from_port   = 5432
     to_port     = 5432
     protocol    = "tcp"
-    cidr_blocks = [data.aws_vpc.selected.cidr_block] # restrict to VPC CIDR for PoLP
+    cidr_blocks = [data.aws_vpc.selected.cidr_block]  # Only allow traffic from inside VPC (PoLP)
   }
 
   egress {
@@ -90,7 +91,7 @@ resource "aws_security_group" "rds_sg" {
   }
 
   tags = {
-    Name = "rds-sg"
+    Name = "rds-security-group"
   }
 }
 
@@ -120,15 +121,18 @@ module "rds" {
   db_subnet_group_name = aws_db_subnet_group.rds_subnet_group.name
 }
 
-resource "aws_ecs_cluster" "this" {
-  name = var.ecs_cluster_name
+# Network ACLs for public subnet
+resource "aws_network_acl" "public_acl" {
+  vpc_id = module.vpc.vpc_id
+  subnet_ids = module.vpc.public_subnets
+
+  tags = {
+    Name = "public-subnet-nacl"
+  }
 }
 
-# --- Network ACLs ---
-
-# Public subnet ACL rules (Example)
 resource "aws_network_acl_rule" "public_in_http" {
-  network_acl_id = var.public_network_acl_id
+  network_acl_id = aws_network_acl.public_acl.id
   rule_number    = 100
   protocol       = "tcp"
   rule_action    = "allow"
@@ -139,7 +143,7 @@ resource "aws_network_acl_rule" "public_in_http" {
 }
 
 resource "aws_network_acl_rule" "public_in_ssh" {
-  network_acl_id = var.public_network_acl_id
+  network_acl_id = aws_network_acl.public_acl.id
   rule_number    = 110
   protocol       = "tcp"
   rule_action    = "allow"
@@ -150,7 +154,7 @@ resource "aws_network_acl_rule" "public_in_ssh" {
 }
 
 resource "aws_network_acl_rule" "public_out_all" {
-  network_acl_id = var.public_network_acl_id
+  network_acl_id = aws_network_acl.public_acl.id
   rule_number    = 100
   protocol       = "-1"
   rule_action    = "allow"
@@ -160,9 +164,18 @@ resource "aws_network_acl_rule" "public_out_all" {
   cidr_block     = "0.0.0.0/0"
 }
 
-# Private subnet ACL rules (Example)
+# Network ACLs for private subnet
+resource "aws_network_acl" "private_acl" {
+  vpc_id = module.vpc.vpc_id
+  subnet_ids = module.vpc.private_subnets
+
+  tags = {
+    Name = "private-subnet-nacl"
+  }
+}
+
 resource "aws_network_acl_rule" "private_in_postgres" {
-  network_acl_id = var.private_network_acl_id
+  network_acl_id = aws_network_acl.private_acl.id
   rule_number    = 100
   protocol       = "tcp"
   rule_action    = "allow"
@@ -173,7 +186,7 @@ resource "aws_network_acl_rule" "private_in_postgres" {
 }
 
 resource "aws_network_acl_rule" "private_out_all" {
-  network_acl_id = var.private_network_acl_id
+  network_acl_id = aws_network_acl.private_acl.id
   rule_number    = 100
   protocol       = "-1"
   rule_action    = "allow"
@@ -183,88 +196,7 @@ resource "aws_network_acl_rule" "private_out_all" {
   cidr_block     = "0.0.0.0/0"
 }
 
-# --- VPC Endpoint for S3 ---
-resource "aws_vpc_endpoint" "s3" {
-  vpc_id            = module.vpc.vpc_id
-  service_name      = "com.amazonaws.${var.aws_region}.s3"
-  vpc_endpoint_type = "Gateway"
-
-  route_table_ids = concat(module.vpc.public_route_table_ids, module.vpc.private_route_table_ids)
-}
-
-# --- AWS Config ---
-
-resource "aws_iam_role" "config_role" {
-  name = "aws-config-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Action    = "sts:AssumeRole"
-      Effect    = "Allow"
-      Principal = { Service = "config.amazonaws.com" }
-    }]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "config_attach" {
-  role       = aws_iam_role.config_role.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSConfigRole"
-}
-
-resource "aws_config_configuration_recorder" "recorder" {
-  name     = "config-recorder"
-  role_arn = aws_iam_role.config_role.arn
-
-  recording_group {
-    all_supported                 = true
-    include_global_resource_types = true
-  }
-}
-
-resource "aws_config_delivery_channel" "channel" {
-  name           = "config-channel"
-  s3_bucket_name = data.aws_s3_bucket.config_bucket.id
-}
-
-resource "aws_config_configuration_recorder_status" "status" {
-  name       = aws_config_configuration_recorder.recorder.name
-  is_enabled = true
-}
-
-resource "aws_config_config_rule" "restricted_ssh" {
-  name = "restricted-ssh"
-
-  source {
-    owner             = "AWS"
-    source_identifier = "RESTRICTED_SSH"
-  }
-}
-
-resource "aws_config_config_rule" "s3_public_read_prohibited" {
-  name = "s3-bucket-public-read-prohibited"
-
-  source {
-    owner             = "AWS"
-    source_identifier = "S3_BUCKET_PUBLIC_READ_PROHIBITED"
-  }
-}
-
-resource "aws_config_config_rule" "required_tags" {
-  name = "required-tags"
-
-  source {
-    owner             = "AWS"
-    source_identifier = "REQUIRED_TAGS"
-  }
-
-  input_parameters = jsonencode({
-    tag1 = "Environment"
-  })
-}
-
-# --- Reference your existing S3 bucket ---
-
+# Reference existing S3 bucket (no ACL resource)
 data "aws_s3_bucket" "config_bucket" {
   bucket = "capstone-bucket-allstars2"
 }
