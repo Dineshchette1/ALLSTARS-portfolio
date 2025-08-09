@@ -47,7 +47,7 @@ resource "aws_security_group" "ec2_sg" {
     from_port   = 8000
     to_port     = 8000
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["0.0.0.0/0"]  # open HTTP to everyone
   }
 
   ingress {
@@ -55,20 +55,21 @@ resource "aws_security_group" "ec2_sg" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = [var.my_ip != "" ? var.my_ip : "0.0.0.0/0"]
+    cidr_blocks = [var.my_ip != "" ? var.my_ip : "203.0.113.10/32"]  # your MacBook public IP only
   }
 
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["0.0.0.0/0"]  # allow all outbound traffic
   }
 
   tags = {
     Name = "ec2-security-group"
   }
 }
+
 
 # Security Group for RDS instance
 resource "aws_security_group" "rds_sg" {
@@ -132,8 +133,8 @@ resource "aws_network_acl" "public_acl" {
 
 # Associate public subnets with public ACL
 resource "aws_network_acl_association" "public_subnet_associations" {
-  for_each = toset(module.vpc.public_subnets)
-  subnet_id     = each.value
+  for_each       = toset(module.vpc.public_subnets)
+  subnet_id      = each.value
   network_acl_id = aws_network_acl.public_acl.id
 }
 
@@ -181,8 +182,8 @@ resource "aws_network_acl" "private_acl" {
 
 # Associate private subnets with private ACL
 resource "aws_network_acl_association" "private_subnet_associations" {
-  for_each = toset(module.vpc.private_subnets)
-  subnet_id     = each.value
+  for_each       = toset(module.vpc.private_subnets)
+  subnet_id      = each.value
   network_acl_id = aws_network_acl.private_acl.id
 }
 
