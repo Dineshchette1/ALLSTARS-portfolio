@@ -31,34 +31,29 @@ module "vpc" {
   }
 }
 
-# Detect your current public IP for SSH access dynamically
 data "http" "my_ip" {
   url = "https://checkip.amazonaws.com/"
 }
 
 locals {
-  my_ip_cidr = "${trimspace(data.http.my_ip.body)}/32"
+  my_ip_cidr = "${trimspace(data.http.my_ip.response_body)}/32"
 }
 
-# Data source for VPC CIDR block
 data "aws_vpc" "selected" {
   id = module.vpc.vpc_id
 }
 
-# Auto-fetch private subnet NACL by subnet association
-data "aws_network_acl" "private_nacl" {
-  filter {
-    name   = "association.subnet-id"
-    values = [module.vpc.private_subnets[0]]
-  }
+# Get private subnet info to fetch associated NACL ID
+data "aws_subnet" "private_subnet_1" {
+  id = module.vpc.private_subnets[0]
 }
 
-# Use existing S3 bucket by name (replace with your bucket name in variables.tf or terraform.tfvars)
-data "aws_s3_bucket" "config_bucket" {
-  bucket = var.existing_s3_bucket_name
+locals {
+  # Use provided private_network_acl_id variable or fetch from subnet association
+  private_nacl_id = length(var.private_network_acl_id) > 0 ? var.private_network_acl_id : data.aws_subnet.private_subnet_1.network_acl_id
 }
 
-# Security group for EC2 instance with SSH allowed only from your current IP
+# Security group for EC2 instance — restrict SSH to your IP, HTTP open to all
 resource "aws_security_group" "ec2_sg" {
   name        = "ec2-sg"
   description = "Allow HTTP and SSH access"
@@ -73,7 +68,7 @@ resource "aws_security_group" "ec2_sg" {
   }
 
   ingress {
-    description = "Allow SSH from my current IP"
+    description = "Allow SSH"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
@@ -92,10 +87,10 @@ resource "aws_security_group" "ec2_sg" {
   }
 }
 
-# Security group for RDS instance limited to VPC CIDR (PoLP)
+# Security group for RDS instance — restrict access to VPC CIDR (PoLP)
 resource "aws_security_group" "rds_sg" {
   name        = "rds-sg"
-  description = "Allow PostgreSQL traffic from VPC CIDR only"
+  description = "Allow PostgreSQL traffic"
   vpc_id      = module.vpc.vpc_id
 
   ingress {
@@ -147,9 +142,9 @@ resource "aws_ecs_cluster" "this" {
   name = var.ecs_cluster_name
 }
 
-# Network ACL rule referencing the auto-fetched private NACL
+# Network ACL Rule example to allow inbound Postgres traffic in private subnet
 resource "aws_network_acl_rule" "private_in_postgres" {
-  network_acl_id = data.aws_network_acl.private_nacl.id
+  network_acl_id = local.private_nacl_id
   rule_number    = 100
   protocol       = "tcp"
   rule_action    = "allow"
@@ -159,7 +154,11 @@ resource "aws_network_acl_rule" "private_in_postgres" {
   cidr_block     = data.aws_vpc.selected.cidr_block
 }
 
-# Reference the existing S3 bucket ACL (do not recreate bucket)
+# Reference existing S3 bucket (do NOT recreate)
+data "aws_s3_bucket" "config_bucket" {
+  bucket = "capstone-bucket-allstars2"
+}
+
 resource "aws_s3_bucket_acl" "config_bucket_acl" {
   bucket = data.aws_s3_bucket.config_bucket.id
   acl    = "private"
