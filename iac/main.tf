@@ -111,8 +111,16 @@ resource "aws_network_acl" "public_acl" {
   }
 }
 
+# Create map with static keys for public subnets
+locals {
+  public_subnet_map = {
+    for idx, subnet in module.vpc.public_subnets :
+    "public_subnet_${idx}" => subnet
+  }
+}
+
 resource "aws_network_acl_association" "public_subnet_associations" {
-  for_each       = toset(module.vpc.public_subnets)
+  for_each       = local.public_subnet_map
   subnet_id      = each.value
   network_acl_id = aws_network_acl.public_acl.id
 }
@@ -158,8 +166,16 @@ resource "aws_network_acl" "private_acl" {
   }
 }
 
+# Create map with static keys for private subnets
+locals {
+  private_subnet_map = {
+    for idx, subnet in module.vpc.private_subnets :
+    "private_subnet_${idx}" => subnet
+  }
+}
+
 resource "aws_network_acl_association" "private_subnet_associations" {
-  for_each       = toset(module.vpc.private_subnets)
+  for_each       = local.private_subnet_map
   subnet_id      = each.value
   network_acl_id = aws_network_acl.private_acl.id
 }
@@ -277,7 +293,6 @@ module "ec2_asg" {
   security_group_id = aws_security_group.ec2_sg.id
 }
 
-# Outputs for RDS info from rds module
 output "db_instance_id" {
   description = "The RDS instance identifier"
   value       = module.rds.db_instance_id
