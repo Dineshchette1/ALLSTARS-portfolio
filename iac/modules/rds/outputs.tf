@@ -17,3 +17,8 @@ output "db_name" {
   description = "The name of the initial database"
   value       = aws_db_instance.postgres.db_name
 }
+output "db_username" {
+  description = "The master username for the RDS instance"
+  value       = var.db_username
+  sensitive   = true
+}
