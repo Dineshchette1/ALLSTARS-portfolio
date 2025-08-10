@@ -284,6 +284,7 @@ module "ec2_asg" {
   instance_type     = "t2.micro"
   subnet_ids        = module.vpc.public_subnets
   security_group_id = aws_security_group.ec2_sg.id
+}
 output "db_username" {
   description = "The master username for the RDS instance"
   value       = aws_db_instance.this.username
