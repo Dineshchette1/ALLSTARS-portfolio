@@ -6,41 +6,54 @@ resource "aws_instance" "app_server" {
   key_name                    = "rohtih-key-pair"
   vpc_security_group_ids      = [var.security_group_id]
 
-#   user_data = <<-EOF
-#               #!/bin/bash
-#               yum update -y
-#               amazon-linux-extras install docker -y
-#               service docker start
-#               usermod -a -G docker ec2-user
-#               docker run -d -p 8000:8000 rohith123/capstone-api:latest
-#               EOF
-user_data = <<-EOF
-  #!/bin/bash
-  yum update -y
-  amazon-linux-extras install docker -y
-  service docker start
-  usermod -a -G docker ec2-user
+  root_block_device {
+    volume_type = "gp3"
+    volume_size = 8
+    encrypted   = true
+  }
 
-  # Install AWS CLI (if not installed)
-  if ! command -v aws &> /dev/null; then
-    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-    unzip awscliv2.zip
-    sudo ./aws/install
-  fi
+  user_data = <<-EOF
+    #!/bin/bash
+    yum update -y
+    amazon-linux-extras install docker -y
+    service docker start
+    usermod -a -G docker ec2-user
 
-  # Login to ECR
-  aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com
+    # Install CloudWatch agent
+    yum install -y amazon-cloudwatch-agent
 
-  # Pull latest image from your ECR repository
-  docker pull <AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/allstars-captsone-repo:latest
+    cat <<EOT > /opt/aws/amazon-cloudwatch-agent/bin/config.json
+    {
+      "logs": {
+        "logs_collected": {
+          "files": {
+            "collect_list": [
+              {
+                "file_path": "/var/log/messages",
+                "log_group_name": "/ec2/allstars-capstone",
+                "log_stream_name": "{instance_id}"
+              },
+              {
+                "file_path": "/var/log/docker",
+                "log_group_name": "/ec2/allstars-capstone",
+                "log_stream_name": "docker-{instance_id}"
+              }
+            ]
+          }
+        }
+      }
+    }
+    EOT
 
-  # Run the container on port 8000
-  docker run -d -p 8000:8000 <AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/allstars-captsone-repo:latest
-EOF
+    /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json -s
 
+    # Login to ECR and run docker container
+    aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com
+    docker pull <AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/allstars-captsone-repo:latest
+    docker run -d -p 8000:8000 <AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/allstars-captsone-repo:latest
+  EOF
 
   tags = {
     Name = "all-stars-capstone"
   }
 }
-

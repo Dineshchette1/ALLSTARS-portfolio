@@ -10,4 +10,7 @@ resource "aws_db_instance" "postgres" {
   skip_final_snapshot     = true
   vpc_security_group_ids  = [var.db_security_group_id]
   db_subnet_group_name    = var.db_subnet_group_name
+
+  storage_encrypted       = true
+  kms_key_id              = null  # AWS-managed key; specify ARN for customer-managed key
 }
