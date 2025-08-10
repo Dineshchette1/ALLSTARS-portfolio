@@ -101,9 +101,6 @@ resource "aws_db_subnet_group" "rds_subnet_group" {
   tags = {
     Name = "RDS subnet group"
   }
-output "db_instance_id" {
-  description = "The RDS instance identifier"
-  value       = aws_db_instance.this.id
 }
 
 resource "aws_network_acl" "public_acl" {
@@ -112,18 +109,12 @@ resource "aws_network_acl" "public_acl" {
   tags = {
     Name = "public-subnet-nacl"
   }
-output "db_endpoint" {
-  description = "The connection endpoint for the RDS instance"
-  value       = aws_db_instance.this.endpoint
 }
 
 resource "aws_network_acl_association" "public_subnet_associations" {
   for_each       = toset(module.vpc.public_subnets)
   subnet_id      = each.value
   network_acl_id = aws_network_acl.public_acl.id
-output "db_name" {
-  description = "The name of the initial database created"
-  value       = aws_db_instance.this.db_name
 }
 
 resource "aws_network_acl_rule" "public_in_http" {
@@ -285,9 +276,25 @@ module "ec2_asg" {
   subnet_ids        = module.vpc.public_subnets
   security_group_id = aws_security_group.ec2_sg.id
 }
-output "db_username" {
-  description = "The master username for the RDS instance"
-  value       = aws_db_instance.this.username
-  sensitive   = true
+
+# Outputs for RDS info from rds module
+output "db_instance_id" {
+  description = "The RDS instance identifier"
+  value       = module.rds.db_instance_id
 }
 
+output "db_endpoint" {
+  description = "The connection endpoint for the RDS instance"
+  value       = module.rds.db_endpoint
+}
+
+output "db_name" {
+  description = "The name of the initial database created"
+  value       = module.rds.db_name
+}
+
+output "db_username" {
+  description = "The master username for the RDS instance"
+  value       = module.rds.db_username
+  sensitive   = true
+}
