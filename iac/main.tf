@@ -31,12 +31,10 @@ module "vpc" {
   }
 }
 
-# Data source to get VPC CIDR block
 data "aws_vpc" "selected" {
   id = module.vpc.vpc_id
 }
 
-# Security Group for EC2 instance
 resource "aws_security_group" "ec2_sg" {
   name        = "ec2-sg"
   description = "Allow HTTP (8000) and SSH access"
@@ -47,7 +45,7 @@ resource "aws_security_group" "ec2_sg" {
     from_port   = 8000
     to_port     = 8000
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # open HTTP to everyone
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
@@ -55,14 +53,14 @@ resource "aws_security_group" "ec2_sg" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = [var.my_ip != "" ? var.my_ip : "203.0.113.10/32"]  # your MacBook public IP only
+    cidr_blocks = [var.my_ip != "" ? var.my_ip : "203.0.113.10/32"]
   }
 
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]  # allow all outbound traffic
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   tags = {
@@ -70,7 +68,6 @@ resource "aws_security_group" "ec2_sg" {
   }
 }
 
-# Security Group for RDS instance
 resource "aws_security_group" "rds_sg" {
   name        = "rds-sg"
   description = "Allow PostgreSQL traffic only from EC2 security group"
@@ -97,7 +94,6 @@ resource "aws_security_group" "rds_sg" {
   }
 }
 
-# RDS Subnet Group
 resource "aws_db_subnet_group" "rds_subnet_group" {
   name       = "rds-subnet-group"
   subnet_ids = module.vpc.private_subnets
@@ -107,7 +103,6 @@ resource "aws_db_subnet_group" "rds_subnet_group" {
   }
 }
 
-# NACLs and rules for public subnet
 resource "aws_network_acl" "public_acl" {
   vpc_id = module.vpc.vpc_id
 
@@ -155,7 +150,6 @@ resource "aws_network_acl_rule" "public_out_all" {
   cidr_block     = "0.0.0.0/0"
 }
 
-# NACLs and rules for private subnet
 resource "aws_network_acl" "private_acl" {
   vpc_id = module.vpc.vpc_id
 
@@ -192,12 +186,10 @@ resource "aws_network_acl_rule" "private_out_all" {
   cidr_block     = "0.0.0.0/0"
 }
 
-# Reference existing S3 bucket
 data "aws_s3_bucket" "config_bucket" {
   bucket = "capstone-bucket-allstars2"
 }
 
-# Block public access for S3 bucket
 resource "aws_s3_bucket_public_access_block" "block_public_access" {
   bucket = data.aws_s3_bucket.config_bucket.id
 
@@ -207,7 +199,6 @@ resource "aws_s3_bucket_public_access_block" "block_public_access" {
   restrict_public_buckets = true
 }
 
-# Enable S3 Server-Side Encryption
 resource "aws_s3_bucket_server_side_encryption_configuration" "sse" {
   bucket = data.aws_s3_bucket.config_bucket.id
 
@@ -218,7 +209,6 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "sse" {
   }
 }
 
-# SNS topic for alerts
 resource "aws_sns_topic" "alerts" {
   name = "capstone-alerts"
 }
@@ -229,7 +219,6 @@ resource "aws_sns_topic_subscription" "email_subscription" {
   endpoint  = var.alert_email
 }
 
-# CloudWatch Alarm - EC2 CPU High
 resource "aws_cloudwatch_metric_alarm" "ec2_cpu_high" {
   alarm_name          = "EC2_CPU_Utilization_High"
   comparison_operator = "GreaterThanThreshold"
@@ -247,7 +236,6 @@ resource "aws_cloudwatch_metric_alarm" "ec2_cpu_high" {
   }
 }
 
-# CloudWatch Alarm - RDS CPU High
 resource "aws_cloudwatch_metric_alarm" "rds_cpu_high" {
   alarm_name          = "RDS_CPU_Utilization_High"
   comparison_operator = "GreaterThanThreshold"
@@ -282,11 +270,9 @@ module "rds" {
   db_subnet_group_name = aws_db_subnet_group.rds_subnet_group.name
 }
 
-# Auto Scaling Group module for EC2 (defined below)
 module "ec2_asg" {
   source            = "./modules/ec2_asg"
   instance_type     = "t2.micro"
   subnet_ids        = module.vpc.public_subnets
   security_group_id = aws_security_group.ec2_sg.id
 }
-

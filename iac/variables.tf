@@ -13,5 +13,5 @@ variable "my_ip" {
 variable "alert_email" {
   description = "Email address for CloudWatch alarm notifications"
   type        = string
-  default     = "your-email@example.com"  # <-- replace with your email
+  default     = "you@example.com"  # <-- replace with your email
 }
