@@ -12,7 +12,6 @@ provider "aws" {
   region = "us-east-1"
 }
 
-# ---------------------- VPC ----------------------
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "5.1.1"
@@ -36,7 +35,6 @@ data "aws_vpc" "selected" {
   id = module.vpc.vpc_id
 }
 
-# ---------------------- Security Groups ----------------------
 resource "aws_security_group" "ec2_sg" {
   name        = "ec2-sg"
   description = "Allow HTTP (8000) and SSH access"
@@ -65,7 +63,9 @@ resource "aws_security_group" "ec2_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = { Name = "ec2-security-group" }
+  tags = {
+    Name = "ec2-security-group"
+  }
 }
 
 resource "aws_security_group" "rds_sg" {
@@ -89,26 +89,41 @@ resource "aws_security_group" "rds_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = { Name = "rds-security-group" }
+  tags = {
+    Name = "rds-security-group"
+  }
 }
 
-# ---------------------- RDS Subnet Group ----------------------
 resource "aws_db_subnet_group" "rds_subnet_group" {
   name       = "rds-subnet-group"
   subnet_ids = module.vpc.private_subnets
-  tags       = { Name = "RDS subnet group" }
+
+  tags = {
+    Name = "RDS subnet group"
+  }
+output "db_instance_id" {
+  description = "The RDS instance identifier"
+  value       = aws_db_instance.this.id
 }
 
-# ---------------------- Network ACLs ----------------------
 resource "aws_network_acl" "public_acl" {
   vpc_id = module.vpc.vpc_id
-  tags   = { Name = "public-subnet-nacl" }
+
+  tags = {
+    Name = "public-subnet-nacl"
+  }
+output "db_endpoint" {
+  description = "The connection endpoint for the RDS instance"
+  value       = aws_db_instance.this.endpoint
 }
 
 resource "aws_network_acl_association" "public_subnet_associations" {
   for_each       = toset(module.vpc.public_subnets)
   subnet_id      = each.value
   network_acl_id = aws_network_acl.public_acl.id
+output "db_name" {
+  description = "The name of the initial database created"
+  value       = aws_db_instance.this.db_name
 }
 
 resource "aws_network_acl_rule" "public_in_http" {
@@ -146,7 +161,10 @@ resource "aws_network_acl_rule" "public_out_all" {
 
 resource "aws_network_acl" "private_acl" {
   vpc_id = module.vpc.vpc_id
-  tags   = { Name = "private-subnet-nacl" }
+
+  tags = {
+    Name = "private-subnet-nacl"
+  }
 }
 
 resource "aws_network_acl_association" "private_subnet_associations" {
@@ -177,13 +195,13 @@ resource "aws_network_acl_rule" "private_out_all" {
   cidr_block     = "0.0.0.0/0"
 }
 
-# ---------------------- S3 ----------------------
 data "aws_s3_bucket" "config_bucket" {
   bucket = "capstone-bucket-allstars2"
 }
 
 resource "aws_s3_bucket_public_access_block" "block_public_access" {
-  bucket                  = data.aws_s3_bucket.config_bucket.id
+  bucket = data.aws_s3_bucket.config_bucket.id
+
   block_public_acls       = true
   block_public_policy     = true
   ignore_public_acls      = true
@@ -200,7 +218,6 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "sse" {
   }
 }
 
-# ---------------------- SNS ----------------------
 resource "aws_sns_topic" "alerts" {
   name = "capstone-alerts"
 }
@@ -211,7 +228,6 @@ resource "aws_sns_topic_subscription" "email_subscription" {
   endpoint  = var.alert_email
 }
 
-# ---------------------- CloudWatch Alarms ----------------------
 resource "aws_cloudwatch_metric_alarm" "ec2_cpu_high" {
   alarm_name          = "EC2_CPU_Utilization_High"
   comparison_operator = "GreaterThanThreshold"
@@ -246,7 +262,6 @@ resource "aws_cloudwatch_metric_alarm" "rds_cpu_high" {
   }
 }
 
-# ---------------------- Modules ----------------------
 module "ec2" {
   source            = "./modules/ec2"
   instance_type     = "t2.micro"
@@ -269,4 +284,9 @@ module "ec2_asg" {
   instance_type     = "t2.micro"
   subnet_ids        = module.vpc.public_subnets
   security_group_id = aws_security_group.ec2_sg.id
+output "db_username" {
+  description = "The master username for the RDS instance"
+  value       = aws_db_instance.this.username
+  sensitive   = true
 }
+

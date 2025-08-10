@@ -1,4 +1,6 @@
 output "db_instance_id" {
+  description = "The ID of the RDS DB instance"
+  value       = aws_db_instance.postgres.id
   description = "The RDS instance identifier"
   value       = aws_db_instance.this.id
 }
@@ -17,3 +19,4 @@ output "db_name" {
   description = "The name of the initial database"
   value       = aws_db_instance.this.db_name
 }
+
