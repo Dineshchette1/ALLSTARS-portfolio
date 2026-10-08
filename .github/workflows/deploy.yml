@@ -1,9 +1,8 @@
 name: Deploy to AWS
 
 on:
-  push:
-    branches:
-      - main  # or whichever branch you use
+  # Manual trigger only (portfolio copy) - the original ran on every push to main
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
